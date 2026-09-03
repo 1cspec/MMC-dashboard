@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Группа компаний ММЦ | Дашборд Проекта</title>
+    <!-- Google Fonts: Inter & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js для графиков -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-gradient-start: #f1f5f9;
+            --bg-gradient-end: #e2e8f0;
+            --panel-bg: #ffffff;
+            --panel-border: rgba(21, 57, 107, 0.12);
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --accent-color: #15396b;
+            --accent-light: #0284c7;
+            --accent-glow: rgba(21, 57, 107, 0.12);
+
+            --success-color: #059669;
+            --success-bg: #dcfce7;
+            --success-border: #a7f3d0;
+            --warning-color: #d97706;
+            --warning-bg: #fef3c7;
+            --warning-border: #fde68a;
+            --danger-color: #dc2626;
+            --danger-bg: #fee2e2;
+            --danger-border: #fca5a5;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 2rem 1.5rem;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1680px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        /* Панель контента.
+           Сознательно без backdrop-filter и без hover-трансформаций: размытие фона и
+           анимация transform на больших панелях заставляли браузер перерисовывать
+           страницу при каждом кадре прокрутки — дашборд заметно подтормаживал. */
+        .glass-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 1.75rem;
+            box-shadow: 0 1px 3px rgba(21, 57, 107, 0.08);
+        }
+
+        /* Header section */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .header-brand-box {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+        }
+
+        .brand-section h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.75rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #15396b;
+        }
+
+        .brand-section .meta-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-top: 0.25rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .project-badge {
+            background: rgba(21, 57, 107, 0.08);
+            color: #15396b;
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            border: 1px solid rgba(21, 57, 107, 0.18);
+        }
+
+        /* Health indicator badge */
+        .health-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            border: 1px solid transparent;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .health-badge.green {
+            background: var(--success-bg);
+            color: var(--success-color);
+            border-color: var(--success-border);
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+        }
+
+        .health-badge.yellow {
+            background: var(--warning-bg);
+            color: var(--warning-color);
+            border-color: var(--warning-border);
+        }
+
+        .health-badge.red {
+            background: var(--danger-bg);
+            color: var(--danger-color);
+            border-color: var(--danger-border);
+        }
+
+        .health-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: currentColor;
+        }
+
+        /* Состояние проекта — структурными блоками.
+           Раньше это был один абзац на 2 000 знаков во всю ширину панели:
+           строка длиной под 200 символов не читается, а найти нужное невозможно. */
+        .summary-blocks {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(24rem, 100%), 1fr));
+            gap: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .summary-block {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-left: 3px solid #0284c7;
+            border-radius: 10px;
+            padding: 0.85rem 1rem;
+        }
+
+        .summary-block.accent-warn { border-left-color: #d97706; }
+        .summary-block.accent-danger { border-left-color: #dc2626; }
+        .summary-block.accent-ok { border-left-color: var(--success-color); }
+
+        .summary-block .b-title {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 0.875rem;
+            color: #0f172a;
+            margin-bottom: 0.3rem;
+        }
+
+        .summary-block .b-text {
+            font-size: 0.85rem;
+            line-height: 1.55;
+            color: #475569;
+        }
+
+        /* Запасной вариант: сплошной текст, если структурных блоков нет в данных */
+        .summary-plain {
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            max-width: 95ch;
+        }
+
+        /* Main Grid Layout */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Metrics grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .metric-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .metric-card .value {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #15396b;
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-card .label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Progress Bar style */
+        .progress-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .progress-label-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.875rem;
+        }
+
+        .progress-bar-bg {
+            height: 12px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #cbd5e1;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #15396b, #0284c7, #00a8e8);
+            border-radius: 10px;
+            box-shadow: 0 0 8px rgba(2, 132, 199, 0.3);
+            transition: width 1.5s cubic-bezier(0.1, 0.8, 0.25, 1);
+        }
+
+        /* Charts panel */
+        .charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+            margin-top: 1.25rem;
+        }
+
+        @media (max-width: 640px) {
+            .charts-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-container {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1rem;
+            min-height: 220px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Timelines and Milestones */
+        .section-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #15396b;
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-left: 4px solid #0284c7;
+            padding-left: 0.75rem;
+        }
+
+        /* Вехи — сеткой карточек на всю ширину.
+           Раньше это была вертикальная лента в узкой правой колонке (~440 px),
+           где описание этапа на 700 знаков превращалось в нечитаемый столбик. */
+        .milestones-grid {
+            display: grid;
+            /* Не больше трёх колонок: у вех сильно разная длина описаний, и при четырёх
+               колонках строка растягивалась по самой длинной карточке, оставляя пустоты. */
+            grid-template-columns: repeat(auto-fit, minmax(min(26rem, 100%), 1fr));
+            gap: 1rem;
+            align-items: start;
+        }
+
+        .milestone-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 1.1rem 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .milestone-card.Completed { border-left-color: var(--success-color); }
+        .milestone-card.In.Progress { border-left-color: #0284c7; }
+        .milestone-card.Planned { border-left-color: #94a3b8; }
+
+        /* Порядковый номер этапа: без него было непонятно, есть ли у вех последовательность */
+        .milestone-step {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.6rem;
+            height: 1.6rem;
+            border-radius: 50%;
+            background: #15396b;
+            color: #ffffff;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 700;
+            flex: 0 0 auto;
+        }
+
+        .milestone-card.Completed .milestone-step { background: var(--success-color); }
+        .milestone-card.Planned .milestone-step { background: #94a3b8; }
+
+        .milestone-head {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .milestone-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.3;
+        }
+
+        .milestone-date {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .milestone-desc {
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: #475569;
+        }
+
+        .milestone-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: auto;
+            padding-top: 0.6rem;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        /* Риски — в две колонки на всю ширину вместо узкой правой колонки */
+        .risks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(26rem, 100%), 1fr));
+            gap: 1rem;
+            align-items: start;
+        }
+
+        /* Нижний ряд: аналитика шире контактов */
+        .bottom-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 1024px) {
+            .bottom-grid { grid-template-columns: 1fr; }
+        }
+
+        .milestone-status {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+        }
+
+        .milestone-status.Completed {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .milestone-status.In.Progress {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .milestone-status.Planned {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+        /* Deliverables tags */
+        .deliverables-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+            margin-top: 0.25rem;
+        }
+
+        .deliverable-tag {
+            font-size: 0.7rem;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            color: #334155;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+        }
+
+        /* Risks section styling */
+        .risk-card {
+            border-left: 4px solid;
+            background: #f8fafc;
+            border-radius: 0 8px 8px 0;
+            padding: 0.75rem 1rem;
+            border-top: 1px solid #e2e8f0;
+            border-right: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .risk-card.HIGH {
+            border-left-color: var(--danger-color);
+            background: #fef2f2;
+        }
+
+        .risk-card.MEDIUM {
+            border-left-color: var(--warning-color);
+            background: #fffbeb;
+        }
+
+        .risk-card-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .risk-desc {
+            font-size: 0.8125rem;
+            color: #334155;
+            margin-bottom: 0.4rem;
+        }
+
+        .risk-mitigation {
+            font-size: 0.75rem;
+            color: #0284c7;
+            font-style: italic;
+            font-weight: 500;
+        }
+
+        /* Contacts and Info styling */
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.875rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: var(--text-secondary);
+        }
+
+        .info-value {
+            font-weight: 600;
+            color: #15396b;
+        }
+
+        /* Таблица активностей проекта */
+        .activities-note {
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+            margin: -0.5rem 0 1rem;
+            line-height: 1.45;
+        }
+
+        /* Легенда работает как фильтр: клик по статусу оставляет только его активности */
+        .status-pill.filter {
+            cursor: pointer;
+            user-select: none;
+            transition: opacity 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .status-pill.filter.off { opacity: 0.35; }
+        .status-pill.filter:hover { box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.25); }
+
+        .filter-reset {
+            font-size: 0.75rem;
+            color: #0284c7;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.2rem 0.4rem;
+            font-family: inherit;
+        }
+
+        .filter-reset:hover { text-decoration: underline; }
+
+        .filter-count {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-left: auto;
+            align-self: center;
+        }
+
+        .activities-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Заголовок группы: раньше терялся в общей массе карточек — теперь это
+           отдельная полоса с подложкой и счётчиком */
+        .activities-group-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #15396b;
+            margin: 1.5rem 0 0.75rem;
+            padding: 0.5rem 0.85rem;
+            background: linear-gradient(90deg, #eef4fb, rgba(238, 244, 251, 0));
+            border-left: 4px solid #15396b;
+            border-radius: 0 8px 8px 0;
+            display: flex;
+            align-items: baseline;
+            gap: 0.6rem;
+        }
+
+        .activities-group-title:first-child { margin-top: 0.25rem; }
+
+        .group-count {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        /* Активности — карточками, а не таблицей.
+           Причина: «Динамика и следующий шаг» — самый длинный текст на странице
+           (до 800+ знаков), и в колонке таблицы он сжимался в нечитаемый столбик.
+           В карточке заголовок идёт строкой, а текст получает всю ширину панели. */
+        .activity-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #ffffff;
+            padding: 0.9rem 1.1rem;
+            margin-bottom: 0.65rem;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .activity-card:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
+        }
+
+        .activity-head {
+            display: flex;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 0.5rem 0.75rem;
+        }
+
+        .activity-num {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            min-width: 1.5rem;
+        }
+
+        .activity-title {
+            font-weight: 600;
+            color: #0f172a;
+            font-size: 0.95rem;
+            flex: 1 1 22rem;
+            line-height: 1.35;
+        }
+
+        .activity-owner {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .activity-owner::before {
+            content: "";
+            display: inline-block;
+            width: 1px;
+            height: 0.75rem;
+            background: #cbd5e1;
+            margin-right: 0.6rem;
+            vertical-align: -1px;
+        }
+
+        .activity-note {
+            margin-top: 0.6rem;
+            padding-top: 0.6rem;
+            border-top: 1px dashed #e2e8f0;
+            font-size: 0.875rem;
+            line-height: 1.6;
+            color: #475569;
+            /* Ограничение по ширине строки: длинные абзацы читаются тяжело,
+               если строка тянется на весь экран */
+            max-width: 100ch;
+        }
+
+        .activity-note-label {
+            display: block;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #94a3b8;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        @media (max-width: 640px) {
+            .activity-title { flex-basis: 100%; }
+            .activity-owner::before { display: none; }
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.2rem 0.55rem;
+            border-radius: 999px;
+            white-space: nowrap;
+            border: 1px solid transparent;
+        }
+
+        .status-pill::before {
+            content: '';
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: currentColor;
+            flex: 0 0 auto;
+        }
+
+        .status-pill.done {
+            background: var(--success-bg);
+            border-color: var(--success-border);
+            color: #166534;
+        }
+
+        .status-pill.green {
+            background: #e0f2fe;
+            border-color: #7dd3fc;
+            color: #0369a1;
+        }
+
+        .status-pill.yellow {
+            background: var(--warning-bg);
+            border-color: var(--warning-border);
+            color: #92400e;
+        }
+
+        .status-pill.red {
+            background: var(--danger-bg);
+            border-color: var(--danger-border);
+            color: #991b1b;
+        }
+
+        .status-pill.gray {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+            color: #475569;
+        }
+
+        /* CORS fallback banner */
+        .fallback-banner {
+            display: none;
+            background: #e0f2fe;
+            border: 1px solid #7dd3fc;
+            color: #0369a1;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 0.8125rem;
+            line-height: 1.4;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <!-- CORS Fallback Banner -->
+        <div id="fallback-banner" class="fallback-banner">
+            💡 <strong>Примечание:</strong> Локальные JSON файлы не могут быть загружены напрямую из-за ограничений
+            безопасности браузера (CORS). Для демонстрации отображаются <strong>демо-данные</strong>. В рабочем
+            репозитории при размещении на GitHub Pages (или при запуске локального сервера) данные будут загружаться
+            автоматически из файлов <code>данные/статус.json</code>, <code>данные/план_проекта.json</code> и
+            <code>данные/задачи.json</code>.
+        </div>
+
+        <!-- Header Panel -->
+        <div class="glass-panel" style="padding: 1.25rem 1.75rem;">
+            <header>
+                <div class="header-brand-box">
+                    <!-- Светлый логотип Группы компаний ММЦ -->
+                    <svg width="150" height="40" viewBox="0 0 273 74" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M106.927 20.8324L106.909 13.5126L103.357 19.4708H101.619L98.069 13.6695V20.8324H94.4766V7.01953H97.6935L102.546 14.9919L107.284 7.01953H110.5L110.54 20.8324H106.927Z" fill="#0284c7"/>
+                        <path d="M116.804 20.1807C115.639 19.5623 114.724 18.7057 114.061 17.614C113.396 16.523 113.062 15.2922 113.062 13.9239C113.062 12.557 113.396 11.3267 114.061 10.2351C114.724 9.14221 115.638 8.28746 116.804 7.66899C117.968 7.05234 119.28 6.74219 120.74 6.74219C122.202 6.74219 123.512 7.05234 124.676 7.66899C125.841 8.28746 126.756 9.14221 127.419 10.2351C128.085 11.3267 128.417 12.557 128.417 13.9239C128.417 15.2922 128.085 16.523 127.419 17.614C126.756 18.7057 125.842 19.5617 124.676 20.1807C123.512 20.7968 122.202 21.1063 120.74 21.1063C119.28 21.1063 117.968 20.7968 116.804 20.1807ZM122.635 17.3778C123.2 17.0493 123.647 16.5859 123.976 15.987C124.306 15.3874 124.469 14.6999 124.469 13.9239C124.469 13.1498 124.306 12.4623 123.976 11.8609C123.647 11.2644 123.2 10.7986 122.635 10.4714C122.069 10.1429 121.438 9.97743 120.74 9.97743C120.042 9.97743 119.411 10.1429 118.846 10.4714C118.28 10.7992 117.833 11.2651 117.504 11.8609C117.173 12.4623 117.01 13.1498 117.01 13.9239C117.01 14.6999 117.173 15.3868 117.504 15.987C117.833 16.5853 118.28 17.0493 118.846 17.3778C119.41 17.7062 120.042 17.8711 120.74 17.8711C121.438 17.8711 122.069 17.7062 122.635 17.3778Z" fill="#0284c7"/>
+                        <path d="M106.927 45.6208L106.909 38.3011L103.357 44.2605H101.619L98.069 38.4586V45.6208H94.4766V31.8086H97.6935L102.546 39.7786L107.284 31.8086H110.5L110.54 45.6208H106.927Z" fill="#15396B"/>
+                        <path d="M125.02 42.6017V45.6202H113.93V31.8086H124.764V34.8271H117.797V37.1551H123.934V40.0771H117.797V42.6017H125.02Z" fill="#15396B"/>
+                        <path d="M208.883 31.8086V45.6208H204.977V40.2359H199.648V45.6208H195.742V31.8086H199.648V36.9982H204.977V31.8086H208.883Z" fill="#15396B"/>
+                        <path d="M215.167 44.9777C214.015 44.3672 213.111 43.5155 212.452 42.4245C211.795 41.331 211.469 40.0965 211.469 38.7136C211.469 37.3314 211.795 36.0956 212.452 35.0028C213.111 33.9123 214.016 33.06 215.167 32.4495C216.318 31.8347 217.618 31.5312 219.066 31.5312C220.325 31.5312 221.465 31.7541 222.479 32.2028C223.492 32.6479 224.334 33.2939 225.004 34.1358L222.518 36.385C221.624 35.3062 220.537 34.7671 219.262 34.7671C218.511 34.7671 217.845 34.9326 217.26 35.2598C216.674 35.5895 216.218 36.0541 215.899 36.6518C215.575 37.2508 215.415 37.9395 215.415 38.7142C215.415 39.4896 215.575 40.1771 215.899 40.7766C216.218 41.3743 216.675 41.8396 217.26 42.1674C217.845 42.4953 218.511 42.6601 219.262 42.6601C220.537 42.6601 221.624 42.1204 222.518 41.0428L225.004 43.2921C224.334 44.1358 223.492 44.7787 222.479 45.2262C221.465 45.6725 220.326 45.8972 219.066 45.8972C217.617 45.896 216.318 45.5901 215.167 44.9777Z" fill="#15396B"/>
+                        <path d="M232.755 40.3323H230.98V45.6208H227.094V31.8086H230.98V37.1746H232.855L236.149 31.8086H240.255L235.934 38.4769L240.294 45.6208H235.895L232.755 40.3323Z" fill="#15396B"/>
+                        <path d="M122.848 67.3914V70.4105H111.758V56.5977H122.59V59.6174H115.625V61.9454H121.762V64.865H115.625V67.3907L122.848 67.3914Z" fill="#15396B"/>
+                        <path d="M138.813 56.5977V70.4105H134.906V65.0237H129.577V70.4105H125.672V56.5977H129.577V61.7872H134.906V56.5977H138.813Z" fill="#15396B"/>
+                        <path d="M153.274 59.6955H149.051V70.4105H145.203V59.6955H140.961V56.5977H153.274V59.6955Z" fill="#15396B"/>
+                        <path d="M165.008 57.2192C165.929 57.635 166.639 58.226 167.138 58.9965C167.639 59.7657 167.889 60.6693 167.889 61.7072C167.889 62.7482 167.639 63.6506 167.138 64.4125C166.639 65.1757 165.929 65.7637 165.008 66.1788C164.086 66.594 163.002 66.8004 161.752 66.8004H159.344V70.4111H155.438V56.5977H161.752C163.002 56.5977 164.087 56.8052 165.008 57.2192ZM163.331 63.2C163.738 62.8502 163.942 62.3532 163.942 61.7079C163.942 61.0644 163.738 60.5649 163.331 60.2084C162.923 59.853 162.316 59.676 161.515 59.676H159.343V63.7214H161.515C162.316 63.7208 162.923 63.5468 163.331 63.2Z" fill="#15396B"/>
+                        <path d="M138.402 0C137.04 0 135.911 1.03181 135.754 2.35301H135.734V4.54851H139.514C140.873 4.54851 142.003 3.51792 142.161 2.1955L142.179 1.88168V0H138.402Z" fill="#15396B"/>
+                        <path d="M107.48 67.3138V56.5977H103.632V67.3138H98.3254V56.5977H94.4766V68.1081L94.4802 68.1112C94.4802 68.124 94.4766 68.1319 94.4766 68.1435C94.4766 69.4031 95.498 70.4227 96.7557 70.4227C96.8003 70.4227 105.803 70.4227 105.803 70.4227V73.2336H109.376V67.3144L107.48 67.3138Z" fill="#15396B"/>
+                        <path d="M174.831 42.5223V31.8086H170.984V42.5229H165.676V31.8086H161.828V43.3185L161.831 43.3209C161.831 43.3337 161.828 43.3429 161.828 43.3545C161.828 44.614 162.849 45.6367 164.108 45.6367C164.151 45.6367 173.154 45.6367 173.154 45.6367V48.4452H176.726V42.5235H174.831V42.5223Z" fill="#15396B"/>
+                        <path d="M266.44 24.7891C265.079 24.7891 263.95 25.8203 263.792 27.1415H263.773V29.337H267.553C268.912 29.337 270.042 28.3064 270.199 26.9852L270.218 26.6701V24.7891H266.44Z" fill="#15396B"/>
+                        <path d="M140.942 42.5223V31.8086H129.811L129.653 36.0714C129.574 38.1484 129.41 39.7548 129.032 40.847C128.927 41.1486 128.722 41.6529 128.355 42.0156C127.989 42.3801 127.463 42.6017 127.437 42.6176C127.063 42.8392 126.812 43.2458 126.812 43.7123V48.4036H130.404V45.6202H139.244V48.4036H142.815V42.5223H140.942ZM137.093 42.5223H131.863C132.245 41.9686 132.528 41.181 132.713 40.1553C132.895 39.1283 133.015 37.8798 133.067 36.4047L133.127 34.9046H137.093V42.5223Z" fill="#15396B"/>
+                        <path d="M130.984 7.01953H134.833V15.1287L140.537 7.01953H144.207V20.8336H140.358V12.7421L134.674 20.8336H130.984V7.01953Z" fill="#15396B"/>
+                        <path d="M145.188 31.8086H149.038V39.9184L154.74 31.8086H158.41V45.622H154.562V37.5312L148.879 45.622H145.188V31.8086H145.188Z" fill="#15396B"/>
+                        <path d="M179.109 31.8086H182.959V39.9184L188.662 31.8086H192.332V45.622H188.484V37.5312L182.801 45.622H179.109V31.8086Z" fill="#15396B"/>
+                        <path d="M242.391 31.8086H246.238V39.9184L251.941 31.8086H255.612V45.622H251.764V37.5312L246.081 45.622H242.391V31.8086Z" fill="#15396B"/>
+                        <path d="M259.016 31.8086H262.863V39.9184L268.567 31.8086H272.237V45.622H268.389V37.5312L262.706 45.622H259.016V31.8086Z" fill="#15396B"/>
+                        <path d="M73.0613 0.363281H56.7422V16.6811H73.0613V0.363281Z" fill="#0284c7"/>
+                        <path d="M56.7428 29.2649V41.2382C56.7428 44.7116 53.9252 47.5298 50.4531 47.5298C46.976 47.5298 44.1578 44.7122 44.1578 41.2382V29.2649H32.1845C28.7112 29.2649 25.8923 26.4485 25.8923 22.974C25.8923 19.4963 28.7112 16.6811 32.1845 16.6811H44.1578V0.363281H30.0812C13.5369 0.363281 0 13.8995 0 30.4451V73.4246H42.9807C59.525 73.4246 73.0619 59.8895 73.0619 43.3433V29.2649H56.7428Z" fill="#0284c7"/>
+                    </svg>
+                    <div class="brand-section">
+                        <h1 id="project-name">ММЦ (Интеграция ERP, БА, РА)</h1>
+                        <div class="meta-info">
+                            <span id="project-code" class="project-badge">ММЦ-ИНТЕГРАЦИЯ</span>
+                            <span>Обновлено: <strong id="last-updated">-</strong></span>
+                            <span id="report-period-wrap" style="display: none;">Отчётная неделя: <strong
+                                    id="report-period">-</strong></span>
+                        </div>
+                    </div>
+                </div>
+                <div id="project-health" class="health-badge green">
+                    <span class="health-dot"></span>
+                    <span id="health-text">Стабилен</span>
+                </div>
+            </header>
+        </div>
+
+        <!-- Состояние проекта: резюме недели, прогресс и счётчики -->
+        <div class="glass-panel">
+            <div class="section-title">Состояние проекта</div>
+            <div id="summary-blocks" class="summary-blocks"></div>
+            <p id="project-summary" class="summary-plain">Загрузка информации о проекте...</p>
+
+            <div class="progress-container">
+                <div class="progress-label-row">
+                    <span style="color: var(--text-secondary); font-weight: 500;">Общий прогресс</span>
+                    <span id="progress-percentage" style="font-weight: 700; color: #0284c7;">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div id="progress-bar-fill" class="progress-bar-fill"></div>
+                </div>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div id="metric-tasks-total" class="value">-</div>
+                    <div class="label">Активностей всего</div>
+                </div>
+                <div class="metric-card">
+                    <div id="metric-tasks-done" class="value" style="color: #059669;">-</div>
+                    <div class="label" style="color: #059669;">Выполнено</div>
+                </div>
+                <div class="metric-card">
+                    <div id="metric-attention" class="value" style="color: #d97706;">-</div>
+                    <div class="label" style="color: #d97706;">Требуют внимания</div>
+                </div>
+                <div class="metric-card">
+                    <div id="metric-blocked" class="value" style="color: #dc2626;">-</div>
+                    <div class="label" style="color: #dc2626;">Заблокировано</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Активности проекта: главная таблица для статус-встречи -->
+        <div class="glass-panel">
+            <div class="section-title">Активности проекта</div>
+            <div id="activities-note" class="activities-note"></div>
+            <div id="activities-legend" class="activities-legend"></div>
+            <div id="activities-container">
+                <!-- Заполняется динамически -->
+            </div>
+        </div>
+
+        <!-- План проекта: вехи — на всю ширину, карточками в сетке -->
+        <div class="glass-panel">
+            <div class="section-title">План проекта (вехи)</div>
+            <div id="timeline" class="milestones-grid">
+                <!-- Заполняется динамически -->
+            </div>
+        </div>
+
+        <!-- Риски — на всю ширину, в две колонки -->
+        <div class="glass-panel">
+            <div class="section-title">Риски и меры противодействия</div>
+            <div id="risks-container" class="risks-grid">
+                <!-- Заполняется динамически -->
+            </div>
+        </div>
+
+        <!-- Нижний ряд: аналитика и контакты -->
+        <div class="bottom-grid">
+
+            <div class="glass-panel" id="analytics-panel">
+                <div class="section-title">Аналитика</div>
+                <div class="charts-row">
+                    <div class="chart-container">
+                        <canvas id="tasksChart" style="max-height: 200px; max-width: 200px;"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="roadmapChart" style="max-height: 200px;"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-panel">
+                    <div class="section-title">Контакты</div>
+                    <div class="info-item">
+                        <span class="info-label">Руководитель проекта</span>
+                        <span id="contact-pm" class="info-value">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Технический лид</span>
+                        <span id="contact-tech" class="info-value">-</span>
+                    </div>
+                    <div id="contact-curator-row" class="info-item" style="display: none;">
+                        <span class="info-label">Куратор проекта</span>
+                        <span id="contact-curator" class="info-value">-</span>
+                    </div>
+                    <div id="contact-customer-row" class="info-item" style="display: none;">
+                        <span class="info-label">РП заказчика</span>
+                        <span id="contact-customer" class="info-value">-</span>
+                    </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        // Демонстрационные данные на случай блокировки CORS при локальном открытии файла
+        const fallbackStatus = {
+            "projectName": "ММЦ (Интеграция ERP, БА, РА)",
+            "projectCode": "ММЦ-ИНТЕГРАЦИЯ",
+            "health": "GREEN",
+            "overallProgress": 15,
+            "lastUpdated": "2026-07-22",
+            "summary": "Успешно создана структура репозиториев ММЦ и импортированы конфигурации 1С (ERP, БА, РА). Запущена первая задача по проектированию обменов и выбору целевой архитектуры.",
+            "metrics": {
+                "totalTasks": 25,
+                "completedTasks": 3,
+                "openBugs": 0,
+                "resolvedBugs": 0,
+                "testCoverage": 0
+            },
+            "keyRisks": [
+                {
+                    "description": "Сложность интеграции трех систем 1С (ERP, БА, РА)",
+                    "impact": "HIGH",
+                    "mitigation": "Проведение детального архитектурного обследования и выбор оптимальной интеграционной шины."
+                }
+            ],
+            "contacts": {
+                "projectManager": "Иван Иванов (pm@company.com)",
+                "leadDeveloper": "Дмитрий Поздняков (pozdnyakov@softlab.su)"
+            }
+        };
+
+        const fallbackRoadmap = [
+            {
+                "id": 1,
+                "name": "Выбор архитектуры интеграции",
+                "description": "Проведение встреч, сбор требований, анализ вариантов обменов и утверждение целевой архитектуры.",
+                "startDate": "2026-06-09",
+                "endDate": "2026-08-01",
+                "progress": 80,
+                "status": "In Progress",
+                "deliverables": [
+                    "Протоколы встреч по обследованиям",
+                    "Матрица сравнения вариантов архитектуры"
+                ]
+            },
+            {
+                "id": 2,
+                "name": "Проектирование и разработка ТЗ",
+                "description": "Составление детальных технических заданий на интеграционные API и доработки 1С.",
+                "startDate": "2026-08-01",
+                "endDate": "2026-09-01",
+                "progress": 0,
+                "status": "Planned",
+                "deliverables": [
+                    "Технические задания по ERP, БА, РА"
+                ]
+            },
+            {
+                "id": 3,
+                "name": "Разработка интеграционного слоя",
+                "description": "Создание обменов, веб-сервисов и подключение конфигураций к шине обмена.",
+                "startDate": "2026-09-01",
+                "endDate": "2026-11-01",
+                "progress": 0,
+                "status": "Planned",
+                "deliverables": [
+                    "Интеграционные модули 1С",
+                    "Настройки очередей сообщений"
+                ]
+            }
+        ];
+
+        // Демо-данные по активностям (используются, если задачи.json недоступен)
+        const fallbackActivities = {
+            "lastUpdated": "2026-07-30",
+            "reportPeriod": "27.07 — 02.08.2026",
+            "meetingNote": "Демонстрационные данные: файл данные/задачи.json не загружен.",
+            "legend": [
+                { "code": "done", "label": "Выполнено" },
+                { "code": "green", "label": "Идёт по плану" },
+                { "code": "yellow", "label": "Требует внимания" },
+                { "code": "red", "label": "Заблокировано" },
+                { "code": "gray", "label": "Не начата" }
+            ],
+            "groups": [
+                {
+                    "name": "Задачи проекта",
+                    "items": [
+                        {
+                            "id": 1,
+                            "task": "Номенклатура: модель справочника",
+                            "owner": "Е. Широких",
+                            "status": "done",
+                            "statusText": "Выполнено",
+                            "note": "Модель принята заказчиком."
+                        },
+                        {
+                            "id": 2,
+                            "task": "Управление запасами и закупками: моделирование",
+                            "owner": "Е. Широких",
+                            "status": "red",
+                            "statusText": "Заблокировано",
+                            "note": "Нет доступов и тестовых баз заказчика."
+                        }
+                    ]
+                }
+            ]
+        };
+
+        const STATUS_LABELS = {
+            done: 'Выполнено',
+            green: 'Идёт по плану',
+            yellow: 'Требует внимания',
+            red: 'Заблокировано',
+            gray: 'Не начата'
+        };
+
+        const STATUS_COLORS = {
+            done: '#059669',
+            green: '#0284c7',
+            yellow: '#d97706',
+            red: '#dc2626',
+            gray: '#cbd5e1'
+        };
+
+        let tasksChartObj = null;
+        let roadmapChartObj = null;
+
+        // Инициализация графиков в светлой фирменной гамме ММЦ
+        function buildCharts(statusData, roadmapData, activitiesData) {
+            const ctxTasks = document.getElementById('tasksChart').getContext('2d');
+
+            // Разрез активностей по статусам: считаем по таблице активностей,
+            // при её отсутствии — по метрикам статуса
+            const counts = { done: 0, green: 0, yellow: 0, red: 0, gray: 0 };
+            if (activitiesData && Array.isArray(activitiesData.groups)) {
+                activitiesData.groups.forEach(group => {
+                    (group.items || []).forEach(item => {
+                        if (counts[item.status] !== undefined) counts[item.status] += 1;
+                    });
+                });
+            } else {
+                const m = statusData.metrics || {};
+                counts.done = m.completedTasks || 0;
+                counts.green = m.onTrackTasks || 0;
+                counts.yellow = m.attentionTasks || 0;
+                counts.red = m.blockedTasks || 0;
+                counts.gray = m.notStartedTasks || 0;
+            }
+
+            const orderedCodes = ['done', 'green', 'yellow', 'red', 'gray'].filter(code => counts[code] > 0);
+
+            tasksChartObj = new Chart(ctxTasks, {
+                type: 'doughnut',
+                data: {
+                    labels: orderedCodes.map(code => STATUS_LABELS[code]),
+                    datasets: [{
+                        data: orderedCodes.map(code => counts[code]),
+                        backgroundColor: orderedCodes.map(code => STATUS_COLORS[code]),
+                        borderColor: '#ffffff',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#475569', font: { size: 10 }, boxWidth: 10 }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Активности по статусам',
+                            color: '#15396b',
+                            font: { size: 12, family: 'Outfit', weight: 'bold' }
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
+
+            // График прогресса этапов
+            const ctxRoadmap = document.getElementById('roadmapChart').getContext('2d');
+            const milestoneNames = roadmapData.map(m => m.name.length > 20 ? m.name.substring(0, 18) + '...' : m.name);
+            const milestoneProgress = roadmapData.map(m => m.progress);
+
+            roadmapChartObj = new Chart(ctxRoadmap, {
+                type: 'bar',
+                data: {
+                    labels: milestoneNames,
+                    datasets: [{
+                        label: 'Прогресс этапа (%)',
+                        data: milestoneProgress,
+                        backgroundColor: 'rgba(2, 132, 199, 0.85)',
+                        borderColor: '#15396b',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    scales: {
+                        x: {
+                            max: 100,
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                            ticks: { color: '#64748b', font: { size: 9 } }
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: { color: '#334155', font: { size: 9 } }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        title: {
+                            display: true,
+                            text: 'Прогресс этапов',
+                            color: '#15396b',
+                            font: { size: 12, family: 'Outfit', weight: 'bold' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function escapeHtml(value) {
+            return String(value === undefined || value === null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // Таблица активностей проекта — главный блок для статус-встречи
+        function renderActivities(activitiesData) {
+            const container = document.getElementById('activities-container');
+            const legendBox = document.getElementById('activities-legend');
+            const noteBox = document.getElementById('activities-note');
+            container.innerHTML = '';
+            legendBox.innerHTML = '';
+            noteBox.innerText = '';
+
+            if (!activitiesData || !Array.isArray(activitiesData.groups) || activitiesData.groups.length === 0) {
+                container.innerHTML = '<div style="color: var(--text-secondary); font-size: 0.875rem;">Активности не заведены</div>';
+                return;
+            }
+
+            if (activitiesData.meetingNote) {
+                noteBox.innerText = activitiesData.meetingNote;
+            }
+
+            const legend = activitiesData.legend && activitiesData.legend.length
+                ? activitiesData.legend
+                : Object.keys(STATUS_LABELS).map(code => ({ code: code, label: STATUS_LABELS[code] }));
+            legendBox.innerHTML = legend
+                .map(entry => `<span class="status-pill filter ${escapeHtml(entry.code)}" data-code="${escapeHtml(entry.code)}">${escapeHtml(entry.label)}</span>`)
+                .join('') + '<button type="button" class="filter-reset" id="filter-reset" hidden>Показать все</button>'
+                + '<span class="filter-count" id="filter-count"></span>';
+
+            activitiesData.groups.forEach(group => {
+                const title = document.createElement('div');
+                title.className = 'activities-group-title';
+                title.dataset.group = group.name;
+                const всего = (group.items || []).length;
+                title.innerHTML = `<span>${escapeHtml(group.name)}</span>`
+                    + `<span class="group-count">${всего} ${склонение(всего)}</span>`;
+                container.appendChild(title);
+
+                const список = document.createElement('div');
+                список.className = 'activity-list';
+                список.innerHTML = (group.items || []).map(item => `
+                    <div class="activity-card">
+                        <div class="activity-head">
+                            <span class="activity-num">${escapeHtml(item.id)}</span>
+                            <span class="activity-title">${escapeHtml(item.task)}</span>
+                            <span class="status-pill ${escapeHtml(item.status)}">${escapeHtml(item.statusText || STATUS_LABELS[item.status] || '')}</span>
+                            <span class="activity-owner">${escapeHtml(item.owner)}</span>
+                        </div>
+                        ${item.note ? `<div class="activity-note">
+                            <span class="activity-note-label">Динамика и следующий шаг</span>
+                            ${escapeHtml(item.note)}
+                        </div>` : ''}
+                    </div>`).join('');
+                container.appendChild(список);
+            });
+
+            настроитьФильтр();
+        }
+
+        function склонение(n) {
+            const о = n % 10, с = n % 100;
+            if (о === 1 && с !== 11) return 'активность';
+            if (о >= 2 && о <= 4 && (с < 12 || с > 14)) return 'активности';
+            return 'активностей';
+        }
+
+        // Фильтр по статусу: клик по плашке в легенде оставляет только её активности.
+        // Пустые группы скрываются целиком, чтобы не оставлять заголовки без содержимого.
+        function настроитьФильтр() {
+            const плашки = Array.from(document.querySelectorAll('.status-pill.filter'));
+            const сброс = document.getElementById('filter-reset');
+            const счётчик = document.getElementById('filter-count');
+            let активные = new Set();
+
+            function применить() {
+                const карточки = Array.from(document.querySelectorAll('.activity-card'));
+                let видимых = 0;
+                карточки.forEach(к => {
+                    const плашка = к.querySelector('.status-pill');
+                    const код = плашка ? [...плашка.classList].find(c => c !== 'status-pill') : '';
+                    const показать = активные.size === 0 || активные.has(код);
+                    к.style.display = показать ? '' : 'none';
+                    if (показать) видимых++;
+                });
+                document.querySelectorAll('.activities-group-title').forEach(з => {
+                    const список = з.nextElementSibling;
+                    const есть = список && Array.from(список.querySelectorAll('.activity-card'))
+                        .some(к => к.style.display !== 'none');
+                    з.style.display = есть ? '' : 'none';
+                    if (список) список.style.display = есть ? '' : 'none';
+                });
+                плашки.forEach(п => п.classList.toggle('off',
+                    активные.size > 0 && !активные.has(п.dataset.code)));
+                сброс.hidden = активные.size === 0;
+                счётчик.innerText = активные.size === 0
+                    ? `${карточки.length} ${склонение(карточки.length)}`
+                    : `показано ${видимых} из ${карточки.length}`;
+            }
+
+            плашки.forEach(п => п.addEventListener('click', () => {
+                const код = п.dataset.code;
+                if (активные.has(код)) активные.delete(код); else активные.add(код);
+                применить();
+            }));
+            сброс.addEventListener('click', () => { активные.clear(); применить(); });
+            применить();
+        }
+
+        // Рендеринг данных на страницу
+        function renderData(statusData, roadmapData, activitiesData) {
+            document.getElementById('project-name').innerText = statusData.projectName;
+            document.getElementById('project-code').innerText = statusData.projectCode;
+            document.getElementById('last-updated').innerText = statusData.lastUpdated;
+            // Состояние проекта: структурные блоки, если они заданы в данных;
+            // иначе — прежний сплошной текст (обратная совместимость).
+            const блоки = document.getElementById('summary-blocks');
+            const простой = document.getElementById('project-summary');
+            if (Array.isArray(statusData.summaryPoints) && statusData.summaryPoints.length) {
+                блоки.innerHTML = statusData.summaryPoints.map(п => `
+                    <div class="summary-block ${escapeHtml(п.accent || '')}">
+                        <div class="b-title">${escapeHtml(п.title)}</div>
+                        <div class="b-text">${escapeHtml(п.text)}</div>
+                    </div>`).join('');
+                простой.style.display = 'none';
+            } else {
+                блоки.style.display = 'none';
+                простой.innerText = statusData.summary || '';
+            }
+
+            const reportPeriod = statusData.reportPeriod || (activitiesData && activitiesData.reportPeriod);
+            if (reportPeriod) {
+                document.getElementById('report-period').innerText = reportPeriod;
+                document.getElementById('report-period-wrap').style.display = '';
+            }
+
+            const healthBadge = document.getElementById('project-health');
+            const healthText = document.getElementById('health-text');
+            // Здоровье проекта. AMBER — та же «жёлтая» зона, что и YELLOW: в данных
+            // используется именно AMBER, и без этой ветки бейдж оставался без стиля,
+            // а подпись уходила в «Критическое» — то есть дашборд объявлял критическим
+            // проект, который таковым не является.
+            const здоровье = String(statusData.health || '').toUpperCase();
+            const карта = {
+                GREEN:  { css: 'green',  текст: 'Стабилен' },
+                YELLOW: { css: 'yellow', текст: 'Требует внимания' },
+                AMBER:  { css: 'yellow', текст: 'Требует внимания' },
+                RED:    { css: 'red',    текст: 'Критическое' }
+            };
+            const состояние = карта[здоровье] || { css: 'yellow', текст: 'Требует внимания' };
+            healthBadge.className = 'health-badge ' + состояние.css;
+            healthText.innerText = состояние.текст;
+
+            document.getElementById('progress-percentage').innerText = statusData.overallProgress + '%';
+            document.getElementById('progress-bar-fill').style.width = statusData.overallProgress + '%';
+
+            // Метрики считаем по таблице активностей, если она загружена
+            const counts = { total: 0, done: 0, yellow: 0, red: 0 };
+            if (activitiesData && Array.isArray(activitiesData.groups)) {
+                activitiesData.groups.forEach(group => {
+                    (group.items || []).forEach(item => {
+                        counts.total += 1;
+                        if (item.status === 'done') counts.done += 1;
+                        if (item.status === 'yellow') counts.yellow += 1;
+                        if (item.status === 'red') counts.red += 1;
+                    });
+                });
+            }
+            const m = statusData.metrics || {};
+            document.getElementById('metric-tasks-total').innerText = counts.total || m.totalTasks || 0;
+            document.getElementById('metric-tasks-done').innerText = counts.total ? counts.done : (m.completedTasks || 0);
+            document.getElementById('metric-attention').innerText = counts.total ? counts.yellow : (m.attentionTasks || 0);
+            document.getElementById('metric-blocked').innerText = counts.total ? counts.red : (m.blockedTasks || 0);
+
+            document.getElementById('contact-pm').innerText = statusData.contacts.projectManager;
+            document.getElementById('contact-tech').innerText = statusData.contacts.leadDeveloper;
+            if (statusData.contacts.curator) {
+                document.getElementById('contact-curator').innerText = statusData.contacts.curator;
+                document.getElementById('contact-curator-row').style.display = '';
+            }
+            if (statusData.contacts.customerManager) {
+                document.getElementById('contact-customer').innerText = statusData.contacts.customerManager;
+                document.getElementById('contact-customer-row').style.display = '';
+            }
+
+            renderActivities(activitiesData);
+
+            const risksContainer = document.getElementById('risks-container');
+            risksContainer.innerHTML = '';
+            if (statusData.keyRisks && statusData.keyRisks.length > 0) {
+                statusData.keyRisks.forEach(risk => {
+                    const card = document.createElement('div');
+                    card.className = `risk-card ${risk.impact}`;
+                    card.innerHTML = `
+                    <div class="risk-card-header">
+                        <span>Влияние: ${risk.impact === 'HIGH' ? 'ВЫСОКОЕ' : 'СРЕДНЕЕ'}</span>
+                    </div>
+                    <div class="risk-desc">${risk.description}</div>
+                    <div class="risk-mitigation">Меры: ${risk.mitigation}</div>
+                `;
+                    risksContainer.appendChild(card);
+                });
+            } else {
+                risksContainer.innerHTML = '<div style="color: var(--text-secondary); font-size: 0.875rem;">Риски не зафиксированы</div>';
+            }
+
+            const timeline = document.getElementById('timeline');
+            timeline.innerHTML = '';
+            // Вехи идут в порядке дат начала: без явной нумерации было непонятно,
+            // есть ли между ними последовательность.
+            const этапы = [...roadmapData].sort((a, b) =>
+                String(a.startDate).localeCompare(String(b.startDate)));
+            этапы.forEach((milestone, индекс) => {
+                const номерЭтапа = индекс + 1;
+                const item = document.createElement('div');
+                const cssStatusClass = milestone.status.replace(' ', '.');
+                item.className = `milestone-card ${cssStatusClass}`;
+
+                let deliverablesHtml = '';
+                if (milestone.deliverables && milestone.deliverables.length > 0) {
+                    deliverablesHtml = `
+                    <div class="deliverables-list">
+                        ${milestone.deliverables.map(d => `<span class="deliverable-tag">${d}</span>`).join('')}
+                    </div>
+                `;
+                }
+
+                let displayStatus = milestone.status;
+                if (milestone.status === 'Completed') displayStatus = 'Выполнено';
+                else if (milestone.status === 'In Progress') displayStatus = 'В работе';
+                else if (milestone.status === 'Planned') displayStatus = 'Планируется';
+
+                item.innerHTML = `
+                <div class="milestone-head">
+                    <span class="milestone-step">${номерЭтапа}</span>
+                    <span class="milestone-title">${milestone.name}</span>
+                </div>
+                <div class="milestone-date">${milestone.startDate} — ${milestone.endDate}</div>
+                <div class="milestone-desc">${milestone.description}</div>
+                ${deliverablesHtml}
+                <div class="milestone-footer">
+                    <span class="milestone-status ${cssStatusClass}">${displayStatus}</span>
+                    <span style="font-size: 0.8125rem; font-weight: 600; color: #0284c7;">${milestone.progress}%</span>
+                </div>
+            `;
+                timeline.appendChild(item);
+            });
+
+            // Графики строятся в отдельной защите: если CDN с Chart.js недоступен,
+            // это не должно обрушивать отрисовку данных — раньше страница целиком
+            // уходила в демо-режим из-за одной недоступной библиотеки.
+            try {
+                buildCharts(statusData, roadmapData, activitiesData);
+            } catch (e) {
+                console.warn('Графики не построены:', e);
+                const analytics = document.getElementById('analytics-panel');
+                if (analytics) analytics.style.display = 'none';
+            }
+        }
+
+        async function loadData() {
+            try {
+                const [statusResponse, roadmapResponse, activitiesResponse] = await Promise.all([
+                    fetch('./данные/статус.json'),
+                    fetch('./данные/план_проекта.json'),
+                    fetch('./данные/задачи.json')
+                ]);
+
+                if (!statusResponse.ok || !roadmapResponse.ok || !activitiesResponse.ok) {
+                    throw new Error("Не удалось загрузить JSON-файлы проекта");
+                }
+
+                const statusData = await statusResponse.json();
+                const roadmapData = await roadmapResponse.json();
+                const activitiesData = await activitiesResponse.json();
+
+                renderData(statusData, roadmapData, activitiesData);
+            } catch (e) {
+                console.warn("Fetch failed, using mock fallback data:", e);
+                document.getElementById('fallback-banner').style.display = 'block';
+                renderData(fallbackStatus, fallbackRoadmap, fallbackActivities);
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', loadData);
+    </script>
+</body>
+
+</html>
